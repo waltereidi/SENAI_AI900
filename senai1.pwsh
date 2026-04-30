@@ -1,0 +1,27 @@
+# Define variables
+$endpoint = "https://<resource-name>.services.ai.azure.com/openai/v1/chat/completions"
+$apiKey = "<tu-api-key>"
+$deploymentName = "<nombre-del-deployment>"
+
+# Define el cuerpo de la solicitud JSON
+$body = @{
+    model = $deploymentName
+    messages = @(
+        @{
+            role = "user"
+            content = "Escribe tu pregunta aquí"
+        }
+    )
+} | ConvertTo-Json -Depth 3
+
+# Define los encabezados HTTP
+$headers = @{
+    "Content-Type" = "application/json"
+    "api-key" = $apiKey
+}
+
+# Realiza la solicitud POST
+$response = Invoke-RestMethod -Uri $endpoint -Method Post -Headers $headers -Body $body
+
+# Muestra la respuesta
+$response.choices[0].message.content
