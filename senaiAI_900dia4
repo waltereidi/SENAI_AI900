@@ -1,0 +1,26 @@
+# Login (se ainda não estiver logado)
+az login
+
+# Obter token correto
+$tokenResponse = az account get-access-token --resource "https://cognitiveservices.azure.com/" | ConvertFrom-Json
+$accessToken = $tokenResponse.accessToken
+
+# Endpoint CORRETO
+$uri = "https://senai3foundry.openai.azure.com/openai/v1/responses"
+
+# Headers
+$headers = @{
+    "Content-Type"  = "application/json"
+    "Authorization" = "Bearer $accessToken"
+}
+
+# Body
+$body = @{
+    model = "Agent828"
+    input = "This is a test"
+} | ConvertTo-Json -Depth 5
+
+# Request
+$response = Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $body
+
+$response | ConvertTo-Json -Depth 10
