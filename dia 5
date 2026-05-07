@@ -1,0 +1,34 @@
+# import namespace
+from openai import OpenAI
+    
+def main():
+    
+     try:
+         # Configuration settings 
+         endpoint = "https://local/openai"
+         key = "key123"
+         model_name = "local-llm"
+    
+         # Initialize the OpenAI client
+         openai_client = OpenAI(
+             base_url=endpoint,
+             api_key=key
+         )
+            
+         # Get a response to a prompt
+         input_text = input('\nAgent: Enter a question about expenses.\nYou: ')
+         response = openai_client.responses.create(
+                     model=model_name,
+                     instructions="""
+                     You are an AI assistant that provides short, concise answers to expense-related questions.
+                     """,
+                     input=input_text
+         )
+         print(f"Agent: {response.output_text}")
+                
+    
+     except Exception as ex:
+         print(ex)
+    
+if __name__ == '__main__':
+     main()
