@@ -1,0 +1,11 @@
+ curl -X POST "https://your-project-resource.openai.azure.com/openai/v1/video/generations/jobs" \
+ -H "Content-Type: application/json" \
+ -H "Authorization: Bearer $AZURE_API_KEY" \
+ -d '{
+     "prompt" : "A video of a cat",
+      "height" : "1080",
+      "width" : "1080",
+      "n_seconds" : "5",
+      "n_variants" : "1",
+     "model": "sora"
+     }'
