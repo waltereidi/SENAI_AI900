@@ -2,3 +2,4 @@
 azure machine learning 
 usuario e senha 
 senai1 senai1
+dia 9
