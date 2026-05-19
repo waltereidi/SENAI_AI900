@@ -1,0 +1,115 @@
+setx VISION_TRAINING_KEY <your-training-key>
+setx VISION_TRAINING_ENDPOINT <your-training-endpoint>
+setx VISION_PREDICTION_KEY <your-prediction-key>
+setx VISION_PREDICTION_ENDPOINT <your-prediction-endpoint>
+setx VISION_PREDICTION_RESOURCE_ID <your-resource-id>
+using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Prediction;
+using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training;
+using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training.Models;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+// Retrieve the environment variables for your credentials:
+private static string trainingEndpoint = Environment.GetEnvironmentVariable("VISION_TRAINING_ENDPOINT");
+
+private static string trainingKey = Environment.GetEnvironmentVariable("VISION_TRAINING_KEY");
+private static string predictionEndpoint = Environment.GetEnvironmentVariable("VISION_PREDICTION_ENDPOINT");
+private static string predictionKey = Environment.GetEnvironmentVariable("VISION_PREDICTION_KEY");
+
+private static string predictionResourceId = Environment.GetEnvironmentVariable("VISION_PREDICTION_RESOURCE_ID");
+
+private static List<string> hemlockImages;
+private static List<string> japaneseCherryImages;
+private static Tag hemlockTag;
+private static Tag japaneseCherryTag;
+private static Iteration iteration;
+private static string publishedModelName = "treeClassModel";
+private static MemoryStream testImage;
+
+CustomVisionTrainingClient trainingApi = AuthenticateTraining(trainingEndpoint, trainingKey);
+CustomVisionPredictionClient predictionApi = AuthenticatePrediction(predictionEndpoint, predictionKey);
+
+Project project = CreateProject(trainingApi);
+AddTags(trainingApi, project);
+UploadImages(trainingApi, project);
+TrainProject(trainingApi, project);
+PublishIteration(trainingApi, project);
+TestIteration(predictionApi, project);
+DeleteProject(trainingApi, project);
+
+private static CustomVisionTrainingClient AuthenticateTraining(string endpoint, string trainingKey)
+{
+    // Create the Api, passing in the training key
+    CustomVisionTrainingClient trainingApi = new CustomVisionTrainingClient(new Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training.ApiKeyServiceClientCredentials(trainingKey))
+    {
+        Endpoint = endpoint
+    };
+    return trainingApi;
+}
+private static CustomVisionPredictionClient AuthenticatePrediction(string endpoint, string predictionKey)
+{
+    // Create a prediction endpoint, passing in the obtained prediction key
+    CustomVisionPredictionClient predictionApi = new CustomVisionPredictionClient(new Microsoft.Azure.CognitiveServices.Vision.CustomVision.Prediction.ApiKeyServiceClientCredentials(predictionKey))
+    {
+        Endpoint = endpoint
+    };
+    return predictionApi;
+}
+private static Project CreateProject(CustomVisionTrainingClient trainingApi)
+{
+    // Create a new project
+    Console.WriteLine("Creating new project:");
+    return trainingApi.CreateProject("My New Project");
+}
+private static void AddTags(CustomVisionTrainingClient trainingApi, Project project)
+{
+    // Make two tags in the new project
+    hemlockTag = trainingApi.CreateTag(project.Id, "Hemlock");
+    japaneseCherryTag = trainingApi.CreateTag(project.Id, "Japanese Cherry");
+}
+private static void LoadImagesFromDisk()
+{
+    // this loads the images to be uploaded from disk into memory
+    hemlockImages = Directory.GetFiles(Path.Combine("Images", "Hemlock")).ToList();
+    japaneseCherryImages = Directory.GetFiles(Path.Combine("Images", "Japanese_Cherry")).ToList();
+    testImage = new MemoryStream(File.ReadAllBytes(Path.Combine("Images", "Test", "test_image.jpg")));
+}
+private static void UploadImages(CustomVisionTrainingClient trainingApi, Project project)
+{
+    // Add some images to the tags
+    Console.WriteLine("\tUploading images");
+    LoadImagesFromDisk();
+
+    // Images can be uploaded one at a time
+    foreach (var image in hemlockImages)
+    {
+        using (var stream = new MemoryStream(File.ReadAllBytes(image)))
+        {
+            trainingApi.CreateImagesFromData(project.Id, stream, new List<Guid>() { hemlockTag.Id });
+        }
+    }
+
+    // Or uploaded in a single batch 
+    var imageFiles = japaneseCherryImages.Select(img => new ImageFileCreateEntry(Path.GetFileName(img), File.ReadAllBytes(img))).ToList();
+    trainingApi.CreateImagesFromFiles(project.Id, new ImageFileCreateBatch(imageFiles, new List<Guid>() { japaneseCherryTag.Id }));
+
+}
+private static void TrainProject(CustomVisionTrainingClient trainingApi, Project project)
+{
+    // Now there are images with tags start training the project
+    Console.WriteLine("\tTraining");
+    iteration = trainingApi.TrainProject(project.Id);
+
+    // The returned iteration will be in progress, and can be queried periodically to see when it has completed
+    while (iteration.Status == "Training")
+    {
+        Console.WriteLine("Waiting 10 seconds for training to complete...");
+        Thread.Sleep(10000);
+
+        // Re-query the iteration to get it's updated status
+        iteration = trainingApi.GetIteration(project.Id, iteration.Id);
+    }
+}
+
